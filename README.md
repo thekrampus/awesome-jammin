@@ -1,6 +1,6 @@
 # 𝓙𝓪𝓶𝓶𝓲𝓷'! -- a dbus-based media widget for [awesome][awesome]
 
-[//]: # (The title is "Jammin'!", but using Unicode math bold script so it looks as jammin'! as it feels.)
+*(If the title doesn't read "Jammin'!" in a jammin' script, you need to fix your Unicode rendering.)*
 
 [//]: # (TODO: put a screencap here)
 
