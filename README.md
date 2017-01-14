@@ -1,4 +1,4 @@
-# 𝓙𝓪𝓶𝓶𝓲𝓷'! -- a dbus-based media widget for [awesome wm][awesome]
+# 𝓙𝓪𝓶𝓶𝓲𝓷'! -- a dbus-based media widget for [awesome][awesome]
 
 [//]: # (The title is "Jammin'!", but using Unicode math bold script so it looks as jammin'! as it feels.)
 
@@ -24,6 +24,7 @@ some highlights:
 To install:
 * `git clone` somewhere your config can read it, like `~/.config/awesome`
 * Add the widget to your wibar:
+
     ```lua
     -- in your rc.lua:
     local jammin = require("jammin")
@@ -42,6 +43,7 @@ To install:
     }
     ```
 * Add keybindings for media controls:
+
     ```lua
     -- in your rc.lua:
     local jammin = require("jammin")
