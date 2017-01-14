@@ -113,10 +113,10 @@ end
 
 function jammin:set_track_info()
    if self.track then
-      self.music_box:set_markup(string.format(track_fmt,
+      self.music_box:set_markup(string.format(self.track_fmt,
                                               self.track.title,
                                               self.track.artist))
-      self.tooltip:set_markup(string.format(tooltip_fmt,
+      self.tooltip:set_markup(string.format(self.tooltip_fmt,
                                             self.track.title,
                                             self.track.artist,
                                             self.track.album,
@@ -183,8 +183,12 @@ function jammin:on_signal(data, interface, changed, invalidated)
    end
 end
 
-function jammin.new()
+function jammin.new(args)
+   args = args or {}
    local self = setmetatable({}, jammin)
+
+   self.track_fmt = args.track_fmt or track_fmt
+   self.tooltip_fmt = args.tooltip_fmt or tooltip_fmt
 
    self.track = nil
 
