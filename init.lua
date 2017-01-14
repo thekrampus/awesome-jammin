@@ -8,7 +8,6 @@
 local awful = require("awful")
 local wibox = require("wibox")
 local timer = require("gears.timer")
-local util = require("rc.util")
 
 local jammin = {}
 jammin.__index = jammin
@@ -52,6 +51,15 @@ end
 
 function jammin.mute()
    awful.spawn("amixer -q set Master playback toggle")
+end
+
+local function sanitize(raw_string)
+   raw_string = string.gsub(raw_string, "&", "&amp;")
+   raw_string = string.gsub(raw_string, "<", "&lt;")
+   raw_string = string.gsub(raw_string, ">", "&gt;")
+   raw_string = string.gsub(raw_string, "'", "&apos;")
+   raw_string = string.gsub(raw_string, "\"", "&quot;")
+   return raw_string
 end
 
 local function make_menu()
@@ -156,11 +164,11 @@ function jammin:handle_trackchange(metadata)
       self.track = {}
       -- Parse and sanitize the data to print
       local title = metadata["xesam:title"] or ""
-      self.track.title = util.sanitize(title)
+      self.track.title = sanitize(title)
       local artist_list = metadata["xesam:artist"] or ""
-      self.track.artist = util.sanitize(table.concat(artist_list, ", "))
+      self.track.artist = sanitize(table.concat(artist_list, ", "))
       local album = metadata["xesam:album"] or ""
-      self.track.album = util.sanitize(album)
+      self.track.album = sanitize(album)
       local date = metadata["xesam:contentCreated"] or ""
       self.track.year = date:match("^(%d*)-") or "----"
    end
