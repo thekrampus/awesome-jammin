@@ -19,11 +19,11 @@ jammin.__index = jammin
 -- local play_animation = {' ⣸', '⢀⣰', '⣀⣠', '⣄⣀', '⣆⡀', '⣇ ', '⡏ ', '⠏⠁', '⠋⠉', '⠉⠙', '⠈⠹', ' ⢹'}; local play_box_period = 0.16; local pause_glyph = '⣿⣿';
 local play_animation = {' ⡱', '⢀⡰', '⢄⡠', '⢆⡀', '⢎ ', '⠎⠁', '⠊⠑', '⠈⠱'}; local play_box_period = 0.16667; local pause_glyph = '⢾⡷';
 
-local track_fmt = ' %s <span color="white">%s</span> '
-local tooltip_fmt = '   %s\n' ..
-   '<span color="white">by</span> %s\n' ..
-   '<span color="white">on</span> %s\n' ..
-   '   <span color="green">%s</span>'
+local track_fmt = ' ${track.title} <span color="white">${track.artist}</span> '
+local tooltip_fmt = '   ${track.title}\n' ..
+   '<span color="white">by</span> ${track.artist}\n' ..
+   '<span color="white">on</span> ${track.album}\n' ..
+   '   <span color="green">${track.year}</span>'
 
 function jammin.playpause()
    awful.spawn("dbus-send --print-reply --dest=org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.PlayPause")
@@ -53,13 +53,20 @@ function jammin.mute()
    awful.spawn("amixer -q set Master playback toggle")
 end
 
+local function format(fmt, track)
+   for match, key in fmt:gmatch("(%${track%.(.-)})") do
+      fmt = fmt:gsub(match, track[key] or "")
+   end
+   return fmt
+end
+
 local function sanitize(raw_string)
-   raw_string = string.gsub(raw_string, "&", "&amp;")
-   raw_string = string.gsub(raw_string, "<", "&lt;")
-   raw_string = string.gsub(raw_string, ">", "&gt;")
-   raw_string = string.gsub(raw_string, "'", "&apos;")
-   raw_string = string.gsub(raw_string, "\"", "&quot;")
    return raw_string
+      :gsub("&", "&amp;")
+      :gsub("<", "&lt;")
+      :gsub(">", "&gt;")
+      :gsub("'", "&apos;")
+      :gsub("\"", "&quot;")
 end
 
 local function make_menu()
@@ -121,14 +128,8 @@ end
 
 function jammin:set_track_info()
    if self.track then
-      self.music_box:set_markup(string.format(self.track_fmt,
-                                              self.track.title,
-                                              self.track.artist))
-      self.tooltip:set_markup(string.format(self.tooltip_fmt,
-                                            self.track.title,
-                                            self.track.artist,
-                                            self.track.album,
-                                            self.track.year))
+      self.music_box:set_markup(format(self.track_fmt, self.track))
+      self.tooltip:set_markup(format(self.tooltip_fmt, self.track))
    else
       self.music_box:set_text("⣹")
       self.tooltip:set_markup("... nothing's playing...")
@@ -191,6 +192,19 @@ function jammin:on_signal(data, interface, changed, invalidated)
    end
 end
 
+--- Create a new jammin'! widget. Accepts a table of arguments as optional
+-- parameters which override the hardcoded defaults.
+--
+-- Formatting strings use Pango markup syntax, but with the added ability
+-- to insert data about the current track using key-based patterns of the
+-- format "${track.key}". For example, if a track by Aphex Twin is playing,
+-- the formatting string
+--   ``Now playing: ${track.artist}...''
+-- will be formatted as
+--   ``Now playing: Aphex Twin''
+--
+-- @param track_fmt Formatting string for the track display.
+-- @param tooltip_fmt Formatting string for the widget tooltip.
 function jammin.new(args)
    args = args or {}
    local self = setmetatable({}, jammin)
