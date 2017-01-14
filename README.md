@@ -6,7 +6,7 @@
 
 ## what
 
-[awesome][awesome] is pretty neat. I wrote a media widget for use in [my own configuration](thekrampus/awesome-starman). It's grown pretty dope tho so I forked it into its own repo.
+[awesome][awesome] is pretty neat. I wrote a media widget for use in [my own configuration](/../../../awesome-starman). It's grown pretty dope tho so I forked it into its own repo.
 
 **BE ADVISED!** 𝓙𝓪𝓶𝓶𝓲𝓷'! is compatible with awesome 4, and notibly **NOT** backwards-compatible with awesome 3.5.x or earlier. awesome 4 made a big API change for spawning processes and that breaks things. Also the slider is new to 4.
 
