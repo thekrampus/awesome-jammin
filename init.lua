@@ -5,12 +5,12 @@
 -- @module jammin
 ----------------------------------------------------------------
 
-assert(dbus)
 local awful = require("awful")
 local wibox = require("wibox")
 local naughty = require("naughty")
 
 local animation = require("jammin.animation")
+local dbus = require("jammin.dbus")
 
 local jammin = {}
 jammin.__index = jammin
@@ -20,16 +20,6 @@ local tooltip_fmt = '   ${track.title}\n' ..
    '<span color="white">by</span> ${track.artist}\n' ..
    '<span color="white">on</span> ${track.album}\n' ..
    '   <span color="green">${track.year}</span>'
-
-local cmd_fmt = "dbus-send --type=method_call --dest=org.mpris.MediaPlayer2.%s / org.freedesktop.MediaPlayer2.%s"
-local default_player = "spotify"
-
-local function null_callback() end
-
-local function send_media_cmd(player, cmd, callback)
-   callback = callback or null_callback
-   awful.spawn.easy_async(cmd_fmt:format(player, cmd), callback)
-end
 
 local function format(fmt, track)
    for match, key in fmt:gmatch("(%${track%.(.-)})") do
@@ -48,15 +38,15 @@ local function sanitize(raw_string)
 end
 
 function jammin.playpause(player)
-   send_media_cmd(player or default_player, "PlayPause")
+   dbus.send({cmd = "PlayPause", player = player})
 end
 
 function jammin.next(player)
-   send_media_cmd(player or default_player, "Next")
+   dbus.send({cmd = "Next", player = player})
 end
 
 function jammin.previous(player)
-   send_media_cmd(player or default_player, "Previous")
+   dbus.send({cmd = "Previous", player = player})
 end
 
 function jammin.vol_set(n)
@@ -217,9 +207,12 @@ end
 
 --- Handler for PropertyChanged signals on org.freedesktop.DBus.Properties
 function jammin:on_propchange(data, path, changed, invalidated)
+   -- Debug (remove later...)
    local util = require("rc.util")
-   print("data:")
+   print("data: ")
    print(util.table_cat(data))
+   print("changed: ")
+   print(util.table_cat(changed))
 
    if path == "org.mpris.MediaPlayer2.Player" then
       if changed.PlaybackStatus ~= nil then
@@ -269,8 +262,7 @@ function jammin.new(args)
    self:refresh()
 
    -- Hook into DBus signals
-   dbus.add_match("session", "interface='org.freedesktop.DBus.Properties', member='PropertiesChanged'")
-   dbus.connect_signal("org.freedesktop.DBus.Properties", function(...) self:on_propchange(...) end)
+   dbus.add_property_listener(function(...) self:on_propchange(...) end)
 
    self.wibox:buttons(awful.util.table.join(
                          awful.button({ }, 1, jammin.playpause ),
@@ -278,7 +270,7 @@ function jammin.new(args)
                          awful.button({ }, 3, function() self.menu:toggle() end ),
                          awful.button({ }, 4, jammin.vol_up ),
                          awful.button({ }, 5, jammin.vol_down ),
-                         awful.button({ }, 8, send_media_cmd(default_player, "GetMetadata"))
+                         awful.button({ }, 8, dbus.send({cmd = "GetMetadata"}))
    ))
 
    return self
