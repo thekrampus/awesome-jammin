@@ -21,13 +21,6 @@ local tooltip_fmt = '   ${track.title}\n' ..
    '<span color="white">on</span> ${track.album}\n' ..
    '   <span color="green">${track.year}</span>'
 
-local function format(fmt, track)
-   for match, key in fmt:gmatch("(%${track%.(.-)})") do
-      fmt = fmt:gsub(match, track[key] or "")
-   end
-   return fmt
-end
-
 local function sanitize(raw_string)
    return raw_string
       :gsub("&", "&amp;")
@@ -35,6 +28,13 @@ local function sanitize(raw_string)
       :gsub(">", "&gt;")
       :gsub("'", "&apos;")
       :gsub("\"", "&quot;")
+end
+
+local function format(fmt, track)
+   for match, key in fmt:gmatch("(%${track%.(.-)})") do
+      fmt = fmt:gsub(match, sanitize(track[key]) or "")
+   end
+   return fmt
 end
 
 function jammin.playpause(player)
@@ -135,7 +135,7 @@ function jammin:refresh()
 end
 
 --- Handler function for PlaybackStatus change signals
--- Updates the playbox animation to reflect the playback status
+-- Updates the play animation to reflect the playback status
 function jammin:handle_playback(status)
    if status == "Paused" then
       self.play_anim:stop()
@@ -159,16 +159,23 @@ function jammin:handle_trackchange(metadata)
       -- Empty metadata indicates that spotify has been closed
       self.track = nil
    else
-      self.track = {}
-      -- Parse and sanitize the data to print
-      local title = metadata["xesam:title"] or ""
-      self.track.title = sanitize(title)
-      local artist_list = metadata["xesam:artist"] or ""
-      self.track.artist = sanitize(table.concat(artist_list, ", "))
-      local album = metadata["xesam:album"] or ""
-      self.track.album = sanitize(album)
+      -- Parse the data to store
+      local artist_list = metadata["xesam:artist"]
       local date = metadata["xesam:contentCreated"] or ""
-      self.track.year = date:match("^(%d*)-") or "----"
+      local year, month, day = date:match("^(%d*)-(%d*)-(%d*)T")
+      self.track = {
+         title = metadata["xesam:title"],
+         album = metadata["xesam:album"],
+         disc_number = metadata["xesam:discNumber"],
+         track_number = metadata["xesam:trackNumber"],
+         url = metadata["xesam:url"],
+         art_url = metadata["mpris:artUrl"],
+         length_us = metadata["mpris:length"],
+         artist = artist_list and table.concat(artist_list, ", "),
+         year = year or "----",
+         month = month,
+         day = day
+      }
    end
 end
 
@@ -185,7 +192,7 @@ function jammin:add_notify_handler(appname, handler)
          elseif hints.icon_data or hints.image_data then
             -- TODO
          end
-         self:on_notify(sanitize(title), sanitize(text), i)
+         self:on_notify(title, text, i)
          return false
       end
    local preset = naughty.config.presets[appname] or {}
@@ -213,13 +220,16 @@ function jammin:on_propchange(data, path, changed, invalidated)
    print(util.table_cat(data))
    print("changed: ")
    print(util.table_cat(changed))
+   if changed.Metadata then
+      print("nMetadata: " .. #changed.Metadata)
+   end
 
    if path == "org.mpris.MediaPlayer2.Player" then
-      if changed.PlaybackStatus ~= nil then
+      if changed.PlaybackStatus then
          -- Track play/pause/stop signal
          self:handle_playback(changed.PlaybackStatus)
       end
-      if changed.Metadata ~= nil then
+      if changed.Metadata then
          -- Track change signal
          self:handle_trackchange(changed.Metadata)
       end
