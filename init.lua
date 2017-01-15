@@ -7,17 +7,11 @@
 
 local awful = require("awful")
 local wibox = require("wibox")
-local timer = require("gears.timer")
+
+local animation = require("jammin.animation")
 
 local jammin = {}
 jammin.__index = jammin
-
--- local play_animation = {'⣸', '⣴', '⣦', '⣇', '⡏', '⠟', '⠻', '⢹'}; local play_box_period = 0.2; local pause_glyph = '⣿';
--- local play_animation = {'⢸', '⣰', '⣤', '⣆', '⡇', '⠏', '⠛', '⠹'}; local play_box_period = 0.2; local pause_glyph = '⣿';
--- local play_animation = {'⠁', '⠂', '⠄', '⡈', '⡐', '⡠', '⣁', '⣂', '⣌', '⣔', '⣥', '⣮', '⣷', '⣿', '⣶', '⣤', '⣀', ' '}; local play_box_period = 0.2; local pause_glyph = '⣿'
--- local play_animation = {'⣀', '⡠', '⡠', '⠔', '⠔', '⠔', '⠊', '⠊', '⠊', '⠊', '⠉', '⠉', '⠉', '⠉', '⠉', '⠉', '⠑', '⠑', '⠑', '⠑', '⠢', '⠢', '⠢', '⢄', '⢄'}; local play_box_period = 0.03; local pause_glyph = '⣀';
--- local play_animation = {' ⣸', '⢀⣰', '⣀⣠', '⣄⣀', '⣆⡀', '⣇ ', '⡏ ', '⠏⠁', '⠋⠉', '⠉⠙', '⠈⠹', ' ⢹'}; local play_box_period = 0.16; local pause_glyph = '⣿⣿';
-local play_animation = {' ⡱', '⢀⡰', '⢄⡠', '⢆⡀', '⢎ ', '⠎⠁', '⠊⠑', '⠈⠱'}; local play_box_period = 0.16667; local pause_glyph = '⢾⡷';
 
 local track_fmt = ' ${track.title} <span color="white">${track.artist}</span> '
 local tooltip_fmt = '   ${track.title}\n' ..
@@ -140,14 +134,13 @@ end
 -- Updates the playbox animation to reflect the playback status
 function jammin:handle_playback(status)
    if status == "Paused" then
-      self.play_timer:stop()
-      self.play_box:set_markup("<span color=\"white\">" .. pause_glyph .. "</span>")
+      self.play_anim:stop()
    elseif status == "Stopped" then
-      self.play_timer:stop()
-      self.play_box:set_markup("<span color=\"white\">⣏</span>")
       self.track = nil
+      self.play_anim:stop()
+      self.play_anim:set_markup("⣏")
    elseif status == "Playing" then
-      self.play_timer:again()
+      self.play_anim:start()
    end
 end
 
@@ -203,35 +196,26 @@ end
 -- will be formatted as
 --   ``Now playing: Aphex Twin''
 --
--- @param track_fmt Formatting string for the track display.
+-- @param track_fmt   Formatting string for the track display.
 -- @param tooltip_fmt Formatting string for the widget tooltip.
+-- @param animation   A jammin.animation to draw in the playbox.
 function jammin.new(args)
    args = args or {}
    local self = setmetatable({}, jammin)
 
    self.track_fmt = args.track_fmt or track_fmt
    self.tooltip_fmt = args.tooltip_fmt or tooltip_fmt
+   self.play_anim = args.animation or animation()
 
    self.track = nil
 
    self.menu = make_menu()
-
-   self.play_index = 1
    self.music_box = wibox.widget.textbox()
 
-   self.play_box = wibox.widget.textbox()
-
-   local w = wibox.layout.fixed.horizontal(self.play_box, self.music_box)
+   local w = wibox.layout.fixed.horizontal(self.play_anim.wibox, self.music_box)
 
    self.tooltip = awful.tooltip{objects = {w}, delay_show = 1}
 
-   local function animate()
-      self.play_index = (self.play_index % #play_animation) + 1
-      self.play_box:set_markup("<span color=\"white\">" .. play_animation[self.play_index] .. "</span>")
-      return true
-   end
-
-   self.play_timer = timer.start_new(play_box_period, animate)
    self:handle_playback("Stopped")
    self:set_track_info()
 
