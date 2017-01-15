@@ -29,6 +29,7 @@ To install:
     -- in your rc.lua:
     local jammin = require("jammin")
     local myjams = jammin()
+    myjams:add_notify_handler("Spotify") -- add your media player here
     -- [...]
     s.mywibox:setup {
         -- [...]
@@ -36,7 +37,7 @@ To install:
             layout = wibox.layout.fixed.horizontal,
             mykeyboardlayout,
             wibox.widget.systray(),
-            myjams, -- or wherever you want it
+            myjams.wibox, -- or wherever you want it
             mytextclock,
             s.mylayoutbox
         }

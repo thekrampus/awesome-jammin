@@ -5,8 +5,10 @@
 -- @module jammin
 ----------------------------------------------------------------
 
+assert(dbus)
 local awful = require("awful")
 local wibox = require("wibox")
+local naughty = require("naughty")
 
 local animation = require("jammin.animation")
 
@@ -19,11 +21,14 @@ local tooltip_fmt = '   ${track.title}\n' ..
    '<span color="white">on</span> ${track.album}\n' ..
    '   <span color="green">${track.year}</span>'
 
+local cmd_fmt = "dbus-send --type=method_call --dest=org.mpris.MediaPlayer2.%s / org.freedesktop.MediaPlayer2.%s"
 local default_player = "spotify"
 
-local function send_media_cmd(player, cmd)
-   local dbus_cmd = "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.%s /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.%s"
-   awful.spawn(dbus_cmd:format(player, cmd))
+local function null_callback() end
+
+local function send_media_cmd(player, cmd, callback)
+   callback = callback or null_callback
+   awful.spawn.easy_async(cmd_fmt:format(player, cmd), callback)
 end
 
 local function format(fmt, track)
@@ -127,7 +132,8 @@ local function make_menu()
    return menu
 end
 
-function jammin:set_track_info()
+--- Update the widget's markup and tooltip with the current track info
+function jammin:refresh()
    if self.track then
       self.music_box:set_markup(format(self.track_fmt, self.track))
       self.tooltip:set_markup(format(self.tooltip_fmt, self.track))
@@ -135,6 +141,7 @@ function jammin:set_track_info()
       self.music_box:set_text("⣹")
       self.tooltip:set_markup("... nothing's playing...")
    end
+   collectgarbage()
 end
 
 --- Handler function for PlaybackStatus change signals
@@ -175,20 +182,55 @@ function jammin:handle_trackchange(metadata)
    end
 end
 
---- General handler function, callback on org.freedesktop.DBus.Properties
-function jammin:on_signal(data, interface, changed, invalidated)
-   if data.member == "PropertiesChanged" then
-      if interface == "org.mpris.MediaPlayer2.Player" then
-         if changed.PlaybackStatus ~= nil then
-            -- Track play/pause/stop signal
-            self:handle_playback(changed.PlaybackStatus)
+--- Add a handler for DBus notifications through naughty for a given appname.
+-- The default handler function assumes the notification title and text are the
+-- track title and artist respectively. The caller can override this by passing
+-- their own handler function, which is set as the notification callback.
+function jammin:add_notify_handler(appname, handler)
+   handler = handler or
+      function(_, _, _, icon, title, text, _, hints, _)
+         local i
+         if icon ~= "" then
+            i = icon
+         elseif hints.icon_data or hints.image_data then
+            -- TODO
          end
-         if changed.Metadata ~= nil then
-            -- Track change signal
-            self:handle_trackchange(changed.Metadata)
-         end
-         self:set_track_info()
+         self:on_notify(sanitize(title), sanitize(text), i)
+         return false
       end
+   local preset = naughty.config.presets[appname] or {}
+   preset.callback = handler
+   table.insert(naughty.dbus.config.mapping, {{appname=appname}, preset})
+end
+
+--- Handler for notification data. This should be called by notify handlers.
+function jammin:on_notify(title, artist, icon)
+   if not self.track or self.track.title ~= title or self.track.artist ~= artist then
+      self.track = {}
+   end
+   self.track.title = title
+   self.track.artist = artist
+   self.track.icon = icon
+
+   self:refresh()
+end
+
+--- Handler for PropertyChanged signals on org.freedesktop.DBus.Properties
+function jammin:on_propchange(data, path, changed, invalidated)
+   local util = require("rc.util")
+   print("data:")
+   print(util.table_cat(data))
+
+   if path == "org.mpris.MediaPlayer2.Player" then
+      if changed.PlaybackStatus ~= nil then
+         -- Track play/pause/stop signal
+         self:handle_playback(changed.PlaybackStatus)
+      end
+      if changed.Metadata ~= nil then
+         -- Track change signal
+         self:handle_trackchange(changed.Metadata)
+      end
+      self:refresh()
    end
 end
 
@@ -219,26 +261,27 @@ function jammin.new(args)
    self.menu = make_menu()
    self.music_box = wibox.widget.textbox()
 
-   local w = wibox.layout.fixed.horizontal(self.play_anim.wibox, self.music_box)
+   self.wibox = wibox.layout.fixed.horizontal(self.play_anim.wibox, self.music_box)
 
-   self.tooltip = awful.tooltip{objects = {w}, delay_show = 1}
+   self.tooltip = awful.tooltip{objects = {self.wibox}, delay_show = 1}
 
    self:handle_playback("Stopped")
-   self:set_track_info()
+   self:refresh()
 
    -- Hook into DBus signals
-   dbus.add_match("session", "interface='org.freedesktop.DBus.Properties'")
-   dbus.connect_signal("org.freedesktop.DBus.Properties", function(...) self:on_signal(...) end)
+   dbus.add_match("session", "interface='org.freedesktop.DBus.Properties', member='PropertiesChanged'")
+   dbus.connect_signal("org.freedesktop.DBus.Properties", function(...) self:on_propchange(...) end)
 
-   w:buttons(awful.util.table.join(
-                awful.button({ }, 1, jammin.playpause ),
-                awful.button({ }, 2, jammin.mute),
-                awful.button({ }, 3, function() self.menu:toggle() end ),
-                awful.button({ }, 4, jammin.vol_up ),
-                awful.button({ }, 5, jammin.vol_down )
+   self.wibox:buttons(awful.util.table.join(
+                         awful.button({ }, 1, jammin.playpause ),
+                         awful.button({ }, 2, jammin.mute),
+                         awful.button({ }, 3, function() self.menu:toggle() end ),
+                         awful.button({ }, 4, jammin.vol_up ),
+                         awful.button({ }, 5, jammin.vol_down ),
+                         awful.button({ }, 8, send_media_cmd(default_player, "GetMetadata"))
    ))
 
-   return w
+   return self
 end
 
 setmetatable(jammin, {
