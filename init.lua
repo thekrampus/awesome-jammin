@@ -19,32 +19,11 @@ local tooltip_fmt = '   ${track.title}\n' ..
    '<span color="white">on</span> ${track.album}\n' ..
    '   <span color="green">${track.year}</span>'
 
-function jammin.playpause()
-   awful.spawn("dbus-send --print-reply --dest=org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.PlayPause")
-end
+local default_player = "spotify"
 
-function jammin.next()
-   awful.spawn("dbus-send --print-reply --dest=org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.Next")
-end
-
-function jammin.previous()
-   awful.spawn("dbus-send --print-reply --dest=org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.Previous")
-end
-
-function jammin.vol_set(n)
-   awful.spawn("amixer -q set Master " .. n .. "%")
-end
-
-function jammin.vol_up()
-   awful.spawn("amixer -q set Master 5%+")
-end
-
-function jammin.vol_down()
-   awful.spawn("amixer -q set Master 5%-")
-end
-
-function jammin.mute()
-   awful.spawn("amixer -q set Master playback toggle")
+local function send_media_cmd(player, cmd)
+   local dbus_cmd = "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.%s /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.%s"
+   awful.spawn(dbus_cmd:format(player, cmd))
 end
 
 local function format(fmt, track)
@@ -61,6 +40,34 @@ local function sanitize(raw_string)
       :gsub(">", "&gt;")
       :gsub("'", "&apos;")
       :gsub("\"", "&quot;")
+end
+
+function jammin.playpause(player)
+   send_media_cmd(player or default_player, "PlayPause")
+end
+
+function jammin.next(player)
+   send_media_cmd(player or default_player, "Next")
+end
+
+function jammin.previous(player)
+   send_media_cmd(player or default_player, "Previous")
+end
+
+function jammin.vol_set(n)
+   awful.spawn("amixer -q set Master " .. n .. "%")
+end
+
+function jammin.vol_up()
+   awful.spawn("amixer -q set Master 5%+")
+end
+
+function jammin.vol_down()
+   awful.spawn("amixer -q set Master 5%-")
+end
+
+function jammin.mute()
+   awful.spawn("amixer -q set Master playback toggle")
 end
 
 local function make_menu()
