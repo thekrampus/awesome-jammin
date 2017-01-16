@@ -35,22 +35,6 @@ local tooltip_fmt = '   ${track.title}\n' ..
    '<span color="white">on</span> ${track.album}\n' ..
    '   <span color="green">${track.year}</span>'
 
-local function sanitize(raw_string)
-   return raw_string
-      :gsub("&", "&amp;")
-      :gsub("<", "&lt;")
-      :gsub(">", "&gt;")
-      :gsub("'", "&apos;")
-      :gsub("\"", "&quot;")
-end
-
-local function format(fmt, track)
-   for match, key in fmt:gmatch("(%${track%.(.-)})") do
-      fmt = fmt:gsub(match, track[key] and sanitize(track[key]) or "")
-   end
-   return fmt
-end
-
 function jammin.playpause(player)
    dbus.send({cmd = "PlayPause", player = player})
 end
@@ -128,8 +112,8 @@ end
 --- Update the widget's markup and tooltip with the current track info
 function jammin:refresh()
    if self.track then
-      self.music_box:set_markup(format(self.track_fmt, self.track))
-      self.tooltip:set_markup(format(self.tooltip_fmt, self.track))
+      self.music_box:set_markup(nifty.util.format(self.track_fmt, self.track, 'track'))
+      self.tooltip:set_markup(nifty.util.format(self.tooltip_fmt, self.track, 'track'))
    else
       self.music_box:set_text("⣹")
       self.tooltip:set_markup("... nothing's playing...")
