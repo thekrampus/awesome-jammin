@@ -8,9 +8,12 @@
 local awful = require("awful")
 local wibox = require("wibox")
 local naughty = require("naughty")
+local beautiful = require("beautiful")
+local shape = require("gears.shape")
 
 local animation = require("jammin.animation")
 local dbus = require("jammin.dbus")
+local timeout = require("jammin.timeout")
 
 local jammin = {}
 jammin.__index = jammin
@@ -74,15 +77,14 @@ local function make_menu()
    local menu = awful.menu{ theme = theme }
 
    local function menu_widget()
-      local beautiful = require("beautiful")
-      local gears = require("gears")
 
       local function handle_shape(cr, w, h)
-         return gears.shape.transform(gears.shape.partially_rounded_rect)
+         return shape.transform(shape.partially_rounded_rect)
             : scale(0.9, 0.9) (cr, h, h, true, false, true, true, theme.width)
       end
+
       local slider = wibox.widget {
-         bar_shape = gears.shape.rounded_bar,
+         bar_shape = shape.rounded_bar,
          bar_height = 2,
          bar_color = beautiful.fg_focus,
          handle_color = "[0]#000000",
@@ -112,6 +114,14 @@ local function make_menu()
          direction = 'east',
          widget = wibox.container.rotate
       }
+
+      local mytimeout = timeout(3, slider, function() menu:hide() end)
+      -- Surely there must be a better way.
+      local _show = menu.show
+      menu.show = function(...) mytimeout:start_timeout(); _show(...) end
+      local _hide = menu.hide
+      menu.hide = function(...) mytimeout:stop_timeout(); _hide(...) end
+
       return {akey = nil,
               widget = w,
               cmd = nil}
