@@ -48,19 +48,19 @@ function jammin.previous(player)
 end
 
 function jammin.vol_set(n)
-   awful.spawn("amixer -q set Master " .. n .. "%")
+   awful.spawn("amixer -q -M set Master " .. n .. "%")
 end
 
 function jammin.vol_up()
-   awful.spawn("amixer -q set Master 5%+")
+   awful.spawn("amixer -q -M set Master 5%+")
 end
 
 function jammin.vol_down()
-   awful.spawn("amixer -q set Master 5%-")
+   awful.spawn("amixer -q -M set Master 5%-")
 end
 
 function jammin.mute()
-   awful.spawn("amixer -q set Master playback toggle")
+   awful.spawn("amixer -q -M set Master playback toggle")
 end
 
 local function make_menu(parent)
@@ -121,7 +121,7 @@ local function make_menu(parent)
    end
 
    parent:connect_signal("mouse::enter", function()
-                            awful.spawn.easy_async("amixer get Master", slider_refresh_callback)
+                            awful.spawn.easy_async("amixer -M get Master", slider_refresh_callback)
    end)
 
    return nifty.popup_widget(w, {theme = theme, timeout = 3})
