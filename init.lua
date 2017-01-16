@@ -5,15 +5,26 @@
 -- @module jammin
 ----------------------------------------------------------------
 
+local naughty = require("naughty")
+local res, nifty = pcall(require, "nifty")
+if not res then
+   local err_msg = "If you want to be jammin' you gotta get nifty!\n" ..
+      "https://github.com/thekrampus/awesome-nifty"
+   print("Error from jammin/init.lua: " .. err_msg)
+   naughty.notify{preset=naughty.config.presets.critical,
+                  title="Jammin' error!",
+                  text=err_msg}
+   return {}
+end
+
+
 local awful = require("awful")
 local wibox = require("wibox")
-local naughty = require("naughty")
 local beautiful = require("beautiful")
 local shape = require("gears.shape")
 
 local animation = require("jammin.animation")
 local dbus = require("jammin.dbus")
-local timeout = require("jammin.timeout")
 
 local jammin = {}
 jammin.__index = jammin
@@ -74,62 +85,44 @@ local function make_menu()
       height = 220
    }
 
-   local menu = awful.menu{ theme = theme }
-
-   local function menu_widget()
-
-      local function handle_shape(cr, w, h)
-         return shape.transform(shape.partially_rounded_rect)
-            : scale(0.9, 0.9) (cr, h, h, true, false, true, true, theme.width)
-      end
-
-      local slider = wibox.widget {
-         bar_shape = shape.rounded_bar,
-         bar_height = 2,
-         bar_color = beautiful.fg_focus,
-         handle_color = "[0]#000000",
-         handle_shape = handle_shape,
-         handle_border_color = beautiful.fg_focus,
-         handle_border_width = 2,
-         handle_width = theme.width,
-         handle_margins = {left=1, top=2},
-         bar_margins = {left=7, right=10, top=theme.width/2 - 1},
-         value = 100,
-         widget = wibox.widget.slider
-      }
-
-      local function slider_callback()
-         jammin.vol_set(slider.value)
-      end
-
-      slider:connect_signal("widget::redraw_needed", slider_callback)
-
-      local w = wibox.container {
-         wibox.container {
-            slider,
-            width = theme.height,
-            strategy = 'max',
-            widget = wibox.container.constraint
-         },
-         direction = 'east',
-         widget = wibox.container.rotate
-      }
-
-      local mytimeout = timeout(3, slider, function() menu:hide() end)
-      -- Surely there must be a better way.
-      local _show = menu.show
-      menu.show = function(...) mytimeout:start_timeout(); _show(...) end
-      local _hide = menu.hide
-      menu.hide = function(...) mytimeout:stop_timeout(); _hide(...) end
-
-      return {akey = nil,
-              widget = w,
-              cmd = nil}
+   local function handle_shape(cr, w, h)
+      return shape.transform(shape.partially_rounded_rect)
+         : scale(0.9, 0.9) (cr, h, h, true, false, true, true, theme.width)
    end
 
-   menu:add({ new = menu_widget })
+   local slider = wibox.widget {
+      bar_shape = shape.rounded_bar,
+      bar_height = 2,
+      bar_color = beautiful.fg_focus,
+      handle_color = "[0]#000000",
+      handle_shape = handle_shape,
+      handle_border_color = beautiful.fg_focus,
+      handle_border_width = 2,
+      handle_width = theme.width,
+      handle_margins = {left=1, top=2},
+      bar_margins = {left=7, right=10, top=theme.width/2 - 1},
+      value = 100,
+      widget = wibox.widget.slider
+   }
 
-   return menu
+   local function slider_callback()
+      jammin.vol_set(slider.value)
+   end
+
+   slider:connect_signal("widget::redraw_needed", slider_callback)
+
+   local w = wibox.container {
+      wibox.container {
+         slider,
+         width = theme.height,
+         strategy = 'max',
+         widget = wibox.container.constraint
+      },
+      direction = 'east',
+      widget = wibox.container.rotate
+   }
+
+   return nifty.popup_widget(w, {theme = theme, timeout = 3})
 end
 
 --- Update the widget's markup and tooltip with the current track info

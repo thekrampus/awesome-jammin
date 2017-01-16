@@ -23,6 +23,7 @@ some highlights:
 ## but how
 To install:
 * `git clone` somewhere your config can read it, like `~/.config/awesome`
+* `git clone` [nifty](/../../../awesome-nifty), probably in the same directory
 * Add the widget to your wibar:
 
     ```lua
