@@ -32,7 +32,7 @@ end
 
 local function format(fmt, track)
    for match, key in fmt:gmatch("(%${track%.(.-)})") do
-      fmt = fmt:gsub(match, sanitize(track[key]) or "")
+      fmt = fmt:gsub(match, track[key] and sanitize(track[key]) or "")
    end
    return fmt
 end
@@ -134,6 +134,10 @@ function jammin:refresh()
    collectgarbage()
 end
 
+function jammin:async_update(player)
+   dbus.poll_async(player, function(p) self:on_propchange(p, nil) end)
+end
+
 --- Handler function for PlaybackStatus change signals
 -- Updates the play animation to reflect the playback status
 function jammin:handle_playback(status)
@@ -181,7 +185,7 @@ end
 
 --- Add a handler for DBus notifications through naughty for a given appname.
 -- The default handler function assumes the notification title and text are the
--- track title and artist respectively. The caller can override this by passing
+-- track title and album respectively. The caller can override this by passing
 -- their own handler function, which is set as the notification callback.
 function jammin:add_notify_handler(appname, handler)
    handler = handler or
@@ -192,7 +196,7 @@ function jammin:add_notify_handler(appname, handler)
          elseif hints.icon_data or hints.image_data then
             -- TODO
          end
-         self:on_notify(title, text, i)
+         self:on_notify(title, nil, text, i)
          return false
       end
    local preset = naughty.config.presets[appname] or {}
@@ -201,40 +205,28 @@ function jammin:add_notify_handler(appname, handler)
 end
 
 --- Handler for notification data. This should be called by notify handlers.
-function jammin:on_notify(title, artist, icon)
-   if not self.track or self.track.title ~= title or self.track.artist ~= artist then
+function jammin:on_notify(title, artist, album, icon)
+   if not self.track then
       self.track = {}
    end
-   self.track.title = title
-   self.track.artist = artist
-   self.track.icon = icon
+   self.track.title = self.track.title or title
+   self.track.artist = self.track.artist or artist
+   self.track.icon = self.track.icon or icon
 
    self:refresh()
 end
 
 --- Handler for PropertyChanged signals on org.freedesktop.DBus.Properties
-function jammin:on_propchange(data, path, changed, invalidated)
-   -- Debug (remove later...)
-   local util = require("rc.util")
-   print("data: ")
-   print(util.table_cat(data))
-   print("changed: ")
-   print(util.table_cat(changed))
+function jammin:on_propchange(changed, invalidated)
+   if changed.PlaybackStatus then
+      -- Track play/pause/stop signal
+      self:handle_playback(changed.PlaybackStatus)
+   end
    if changed.Metadata then
-      print("nMetadata: " .. #changed.Metadata)
+      -- Track change signal
+      self:handle_trackchange(changed.Metadata)
    end
-
-   if path == "org.mpris.MediaPlayer2.Player" then
-      if changed.PlaybackStatus then
-         -- Track play/pause/stop signal
-         self:handle_playback(changed.PlaybackStatus)
-      end
-      if changed.Metadata then
-         -- Track change signal
-         self:handle_trackchange(changed.Metadata)
-      end
-      self:refresh()
-   end
+   self:refresh()
 end
 
 --- Create a new jammin'! widget. Accepts a table of arguments as optional
@@ -270,6 +262,7 @@ function jammin.new(args)
 
    self:handle_playback("Stopped")
    self:refresh()
+   self:async_update()
 
    -- Hook into DBus signals
    dbus.add_property_listener(function(...) self:on_propchange(...) end)
@@ -279,9 +272,9 @@ function jammin.new(args)
                          awful.button({ }, 2, jammin.mute),
                          awful.button({ }, 3, function() self.menu:toggle() end ),
                          awful.button({ }, 4, jammin.vol_up ),
-                         awful.button({ }, 5, jammin.vol_down ),
-                         awful.button({ }, 8, dbus.send({cmd = "GetMetadata"}))
-   ))
+                         awful.button({ }, 5, jammin.vol_down )
+                                           )
+   )
 
    return self
 end
