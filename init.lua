@@ -63,7 +63,7 @@ function jammin.mute()
    awful.spawn("amixer -q set Master playback toggle")
 end
 
-local function make_menu()
+local function make_menu(parent)
    local theme = {
       width = 20,
       height = 220
@@ -105,6 +105,24 @@ local function make_menu()
       direction = 'east',
       widget = wibox.container.rotate
    }
+
+   -- Poll to refresh the slider's value when the user mouses over the wibox
+   local function slider_refresh_callback(out, err, _, status)
+      if status ~= 0 then
+         print("\nError " .. status .. " from jammin' volume polling:")
+         print(err)
+         return
+      end
+
+      local vol_pct = out:match("Mono.+%[(%d+)%%%]")
+      if vol_pct then
+         slider.value = tonumber(vol_pct)
+      end
+   end
+
+   parent:connect_signal("mouse::enter", function()
+                            awful.spawn.easy_async("amixer get Master", slider_refresh_callback)
+   end)
 
    return nifty.popup_widget(w, {theme = theme, timeout = 3})
 end
@@ -240,12 +258,10 @@ function jammin.new(args)
 
    self.track = nil
 
-   self.menu = make_menu()
    self.music_box = wibox.widget.textbox()
-
    self.wibox = wibox.layout.fixed.horizontal(self.play_anim.wibox, self.music_box)
-
    self.tooltip = awful.tooltip{objects = {self.wibox}, delay_show = 1}
+   self.menu = make_menu(self.wibox)
 
    self:handle_playback("Stopped")
    self:refresh()
