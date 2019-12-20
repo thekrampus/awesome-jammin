@@ -172,6 +172,14 @@ function jammin:handle_trackchange(metadata)
       local artist_list = metadata["xesam:artist"]
       local date = metadata["xesam:contentCreated"] or ""
       local year, month, day = date:match("^(%d*)-(%d*)-(%d*)T")
+
+      local artist = 'unknown'
+      if type(artist_list) == 'table' then
+         artist = table.concat(artist_list, ", ")
+      elseif type(artist_list) == 'string' then
+         artist = artist_list
+      end
+
       self.track = {
          title = metadata["xesam:title"],
          album = metadata["xesam:album"],
@@ -180,7 +188,7 @@ function jammin:handle_trackchange(metadata)
          url = metadata["xesam:url"],
          art_url = metadata["mpris:artUrl"],
          length_us = metadata["mpris:length"],
-         artist = artist_list and table.concat(artist_list, ", "),
+         artist = artist,
          year = year or "----",
          month = month,
          day = day
