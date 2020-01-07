@@ -16,7 +16,9 @@ local frames = {'⢸', '⣰', '⣤', '⣆', '⡇', '⠏', '⠛', '⠹'}; local p
 -- local period = 0.16667;
 -- local pause_glyph = '⢾⡷';
 
-local markup_fmt = '<span color="white">%s</span>'
+local function default_markup_fmt(s)
+   return string.format('<span color="white">%s</span>', s)
+end
 
 function animation:start()
    self.timer:again()
@@ -30,7 +32,7 @@ function animation:stop()
 end
 
 function animation:set_markup(s)
-   self.wibox:set_markup(self.markup_fmt:format(s))
+   self.widget:set_markup(self.markup_fmt(s))
 end
 
 function animation.new(args)
@@ -39,10 +41,10 @@ function animation.new(args)
 
    self.frames = args.frames or frames
    self.pause_glyph = args.pause_glyph or pause_glyph
-   self.markup_fmt = args.markup_fmt or markup_fmt
+   self.markup_fmt = args.markup_fmt or default_markup_fmt
    local period = args.period or period
 
-   self.wibox = wibox.widget{
+   self.widget = wibox.widget{
       forced_width = args.fixed_width,
       widget = wibox.widget.textbox
    };
